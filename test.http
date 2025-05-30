@@ -1,0 +1,47 @@
+### Get all habits
+GET http://localhost:3000/api/habits
+Accept: application/json
+
+### create Habit
+POST http://localhost:3000/api/habits
+Accept: application/json
+Content-Type: application/json
+
+{
+    "name": "ngaji",
+    "description": "ngaji setiap hari selama min 1 halaman"
+
+}
+
+### update Habit
+PUT http://localhost:3000/api/habits/2
+Accept: application/json
+Content-Type: application/json
+
+{
+    "name": "okok",
+    "description": "okok setiap hari selama min 1 halaman"
+    
+}
+
+### get Habit by ID
+GET http://localhost:3000/api/habits/2
+Accept: application/json
+
+### delete Habit by ID
+DELETE  http://localhost:3000/api/habits/1
+Accept: application/json
+
+### Get Check History
+GET http://localhost:3000/api/habit-checks/4
+Accept: application/json
+
+### Post Check
+POST http://localhost:3000/api/habit-checks
+Accept: application/json
+Content-Type: application/json
+
+{
+    "id": 4,
+    "check_date": "2027-02-10"
+}
