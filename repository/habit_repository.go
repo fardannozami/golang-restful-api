@@ -10,11 +10,11 @@ import (
 )
 
 type HabitRepository interface {
-	GetAll(ctx context.Context, tx *sql.Tx) ([]model.Habit, error)
-	GetById(ctx context.Context, tx *sql.Tx, habitId int) (model.Habit, error)
-	Create(ctx context.Context, tx *sql.Tx, habit model.Habit) (model.Habit, error)
-	Update(ctx context.Context, tx *sql.Tx, habit model.Habit) (model.Habit, error)
-	Delete(ctx context.Context, tx *sql.Tx, habit model.Habit) error
+	GetAll(ctx context.Context, tx *sql.Tx) []model.Habit
+	GetById(ctx context.Context, tx *sql.Tx, habitId int) model.Habit
+	Create(ctx context.Context, tx *sql.Tx, habit model.Habit) model.Habit
+	Update(ctx context.Context, tx *sql.Tx, habit model.Habit) model.Habit
+	Delete(ctx context.Context, tx *sql.Tx, habit model.Habit)
 }
 
 type mysqlHabitRepository struct{}
@@ -23,74 +23,60 @@ func NewMysqlHabitRepository() HabitRepository {
 	return &mysqlHabitRepository{}
 }
 
-func (r *mysqlHabitRepository) GetAll(ctx context.Context, tx *sql.Tx) ([]model.Habit, error) {
+func (r *mysqlHabitRepository) GetAll(ctx context.Context, tx *sql.Tx) []model.Habit {
 	SQL := "SELECT id, name, description, created_at FROM habits"
 	rows, err := tx.QueryContext(ctx, SQL)
-	if err != nil {
-		return nil, err
-	}
+	helper.PanicIfError(err)
+
 	defer rows.Close()
 
 	var habits []model.Habit
 	for rows.Next() {
 		habit := model.Habit{}
 		err := rows.Scan(&habit.ID, &habit.Name, &habit.Description, &habit.CreatedAt)
-		if err != nil {
-			return nil, err
-		}
+		helper.PanicIfError(err)
+
 		habits = append(habits, habit)
 	}
 
-	return habits, nil
+	return habits
 }
 
-func (r *mysqlHabitRepository) GetById(ctx context.Context, tx *sql.Tx, habitId int) (model.Habit, error) {
+func (r *mysqlHabitRepository) GetById(ctx context.Context, tx *sql.Tx, habitId int) model.Habit {
 	var habit model.Habit
 
 	SQL := "SELECT id, name, description, created_at FROM habits WHERE id = ?"
 	err := tx.QueryRowContext(ctx, SQL, habitId).Scan(&habit.ID, &habit.Name, &habit.Description, &habit.CreatedAt)
-	if err == sql.ErrNoRows {
-		return habit, helper.ErrHabitNotFound
-	}
-	return habit, err
+	helper.PanicIfError(err)
+
+	return habit
 }
 
-func (r *mysqlHabitRepository) Create(ctx context.Context, tx *sql.Tx, habit model.Habit) (model.Habit, error) {
-	// Set CreatedAt langsung di sini
+func (r *mysqlHabitRepository) Create(ctx context.Context, tx *sql.Tx, habit model.Habit) model.Habit {
 	habit.CreatedAt = time.Now()
 
 	SQL := "INSERT INTO habits(name, description, created_at) VALUES(?, ?, ?)"
 	result, err := tx.ExecContext(ctx, SQL, habit.Name, habit.Description, habit.CreatedAt)
-	if err != nil {
-		return model.Habit{}, err
-	}
+	helper.PanicIfError(err)
 
 	id, err := result.LastInsertId()
-	if err != nil {
-		return model.Habit{}, err
-	}
+	helper.PanicIfError(err)
 
 	habit.ID = int(id)
 
-	return habit, nil
+	return habit
 }
 
-func (r *mysqlHabitRepository) Update(ctx context.Context, tx *sql.Tx, habit model.Habit) (model.Habit, error) {
+func (r *mysqlHabitRepository) Update(ctx context.Context, tx *sql.Tx, habit model.Habit) model.Habit {
 	SQL := "UPDATE habits SET name = ?, description = ? WHERE id = ?"
 	_, err := tx.ExecContext(ctx, SQL, habit.Name, habit.Description, habit.ID)
-	if err != nil {
-		return model.Habit{}, err
-	}
+	helper.PanicIfError(err)
 
-	return habit, nil
+	return habit
 }
 
-func (r *mysqlHabitRepository) Delete(ctx context.Context, tx *sql.Tx, habit model.Habit) error {
+func (r *mysqlHabitRepository) Delete(ctx context.Context, tx *sql.Tx, habit model.Habit) {
 	SQL := "DELETE FROM habits WHERE id = ?"
 	_, err := tx.ExecContext(ctx, SQL, habit.ID)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	helper.PanicIfError(err)
 }
