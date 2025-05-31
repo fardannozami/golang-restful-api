@@ -13,11 +13,11 @@ import (
 )
 
 type HabitService interface {
-	GetAll(ctx context.Context) ([]response.HabitResponse, error)
-	GetById(ctx context.Context, habitId int) (response.HabitResponse, error)
-	Create(ctx context.Context, request request.HabitCreateRequest) (response.HabitResponse, error)
-	Update(ctx context.Context, request request.HabitUpdateRequest) (response.HabitResponse, error)
-	Delete(ctx context.Context, habitId int) error
+	GetAll(ctx context.Context) []response.HabitResponse
+	GetById(ctx context.Context, habitId int) response.HabitResponse
+	Create(ctx context.Context, request request.HabitCreateRequest) response.HabitResponse
+	Update(ctx context.Context, request request.HabitUpdateRequest) response.HabitResponse
+	Delete(ctx context.Context, habitId int)
 }
 
 type habitService struct {
@@ -34,109 +34,73 @@ func NewHabitService(habitRepository repository.HabitRepository, db *sql.DB, val
 	}
 }
 
-func (s *habitService) GetAll(ctx context.Context) ([]response.HabitResponse, error) {
+func (s *habitService) GetAll(ctx context.Context) []response.HabitResponse {
 	tx, err := s.dB.Begin()
-	if err != nil {
-		return nil, err
-	}
+	helper.PanicIfError(err)
 
 	defer helper.CommitOrRollback(tx)
 
-	habits, err := s.habitRepository.GetAll(ctx, tx)
-	if err != nil {
-		return nil, err
-	}
+	habits := s.habitRepository.GetAll(ctx, tx)
 
-	return helper.ToHabitResponses(habits), nil
+	return helper.ToHabitResponses(habits)
 }
 
-func (s *habitService) GetById(ctx context.Context, habitId int) (response.HabitResponse, error) {
+func (s *habitService) GetById(ctx context.Context, habitId int) response.HabitResponse {
 	tx, err := s.dB.Begin()
-	if err != nil {
-		return response.HabitResponse{}, err
-	}
+	helper.PanicIfError(err)
+
 	defer helper.CommitOrRollback(tx)
 
-	habit, err := s.habitRepository.GetById(ctx, tx, habitId)
-	if err != nil {
-		return response.HabitResponse{}, err
-	}
+	habit := s.habitRepository.GetById(ctx, tx, habitId)
 
-	return helper.ToHabitResponse(habit), nil
+	return helper.ToHabitResponse(habit)
 
 }
 
-func (s *habitService) Create(ctx context.Context, request request.HabitCreateRequest) (response.HabitResponse, error) {
+func (s *habitService) Create(ctx context.Context, request request.HabitCreateRequest) response.HabitResponse {
 	var habitResponse response.HabitResponse
 	err := s.validate.Struct(request)
-	if err != nil {
-		return habitResponse, err
-	}
+	helper.PanicIfError(err)
 
 	tx, err := s.dB.Begin()
-	if err != nil {
-		return habitResponse, err
-	}
+	helper.PanicIfError(err)
 
 	habit := model.Habit{Name: request.Name, Description: request.Description}
 	defer helper.CommitOrRollback(tx)
 
-	savedHabit, err := s.habitRepository.Create(ctx, tx, habit)
-	if err != nil {
-		return habitResponse, err
-	}
+	savedHabit := s.habitRepository.Create(ctx, tx, habit)
 
 	habitResponse = helper.ToHabitResponse(savedHabit)
 
-	return habitResponse, nil
+	return habitResponse
 }
 
-func (s *habitService) Update(ctx context.Context, request request.HabitUpdateRequest) (response.HabitResponse, error) {
-	var habitResponse response.HabitResponse
+func (s *habitService) Update(ctx context.Context, request request.HabitUpdateRequest) response.HabitResponse {
 	err := s.validate.Struct(request)
-	if err != nil {
-		return habitResponse, err
-	}
+	helper.PanicIfError(err)
 
 	tx, err := s.dB.Begin()
-	if err != nil {
-		return habitResponse, err
-	}
+	helper.PanicIfError(err)
 
 	defer helper.CommitOrRollback(tx)
 
-	habit, err := s.habitRepository.GetById(ctx, tx, request.ID)
-	if err != nil {
-		return habitResponse, err
-	}
+	habit := s.habitRepository.GetById(ctx, tx, request.ID)
 
 	habit.Name = request.Name
 	habit.Description = request.Description
 
-	habit, err = s.habitRepository.Update(ctx, tx, habit)
-	if err != nil {
-		return habitResponse, err
-	}
+	habit = s.habitRepository.Update(ctx, tx, habit)
 
-	return helper.ToHabitResponse(habit), nil
+	return helper.ToHabitResponse(habit)
 }
 
-func (s *habitService) Delete(ctx context.Context, habitId int) error {
+func (s *habitService) Delete(ctx context.Context, habitId int) {
 	tx, err := s.dB.Begin()
-	if err != nil {
-		return err
-	}
+	helper.PanicIfError(err)
 
 	defer helper.CommitOrRollback(tx)
 
-	habit, err := s.habitRepository.GetById(ctx, tx, habitId)
-	if err != nil {
-		return err
-	}
+	habit := s.habitRepository.GetById(ctx, tx, habitId)
 
-	if err := s.habitRepository.Delete(ctx, tx, habit); err != nil {
-		return err
-	}
-
-	return nil
+	s.habitRepository.Delete(ctx, tx, habit)
 }
