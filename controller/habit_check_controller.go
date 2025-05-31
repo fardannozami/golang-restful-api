@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/fardannozami/golang-restful-api/helper"
 	"github.com/fardannozami/golang-restful-api/request"
 	"github.com/fardannozami/golang-restful-api/response"
 	"github.com/fardannozami/golang-restful-api/service"
@@ -24,34 +25,40 @@ func NewHabitCheckController(habitCheckService service.HabitCheckService) HabitC
 	return &habitCheckController{habitCheckService: habitCheckService}
 }
 
-func (c *habitCheckController) Check(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
+func (c *habitCheckController) Check(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+	decoder := json.NewDecoder(req.Body)
 	var checkHabitRequest request.CheckHabitRequest
-	if err := json.NewDecoder(req.Body).Decode(&checkHabitRequest); err != nil {
-		response.WriteValidationError(writer, "invalid request body")
-		return
+	err := decoder.Decode(&checkHabitRequest)
+	helper.PanicIfError(err)
+
+	c.habitCheckService.Check(req.Context(), checkHabitRequest)
+
+	apiResponse := response.ApiResponse{
+		Code:    http.StatusOK,
+		Message: "success",
 	}
 
-	if err := c.habitCheckService.Check(req.Context(), checkHabitRequest); err != nil {
-		response.WriteValidationError(writer, err.Error())
-		return
-	}
-
-	response.WriteSuccess(writer, "habit checked successfully")
+	w.Header().Set("Content-Type", "application/json")
+	encoder := json.NewEncoder(w)
+	err = encoder.Encode(apiResponse)
+	helper.PanicIfError(err)
 }
 
-func (c *habitCheckController) GetCheckHistory(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
+func (c *habitCheckController) GetCheckHistory(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 	habitId := params.ByName("id")
 	id, err := strconv.Atoi(habitId)
-	if err != nil {
-		response.WriteValidationError(writer, "invalid habit id")
-		return
+	helper.PanicIfError(err)
+
+	habitChecks := c.habitCheckService.GetCheckHistory(req.Context(), id)
+
+	apiResponse := response.ApiResponse{
+		Code:    http.StatusOK,
+		Message: "success",
+		Data:    habitChecks,
 	}
 
-	habitChecks, err := c.habitCheckService.GetCheckHistory(req.Context(), id)
-	if err != nil {
-		response.WriteValidationError(writer, err.Error())
-		return
-	}
-
-	response.WriteData(writer, habitChecks)
+	w.Header().Set("Content-Type", "application/json")
+	encoder := json.NewEncoder(w)
+	err = encoder.Encode(apiResponse)
+	helper.PanicIfError(err)
 }
