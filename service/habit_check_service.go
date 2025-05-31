@@ -12,8 +12,8 @@ import (
 )
 
 type HabitCheckService interface {
-	Check(ctx context.Context, req request.CheckHabitRequest) error
-	GetCheckHistory(ctx context.Context, habitId int) ([]time.Time, error)
+	Check(ctx context.Context, req request.CheckHabitRequest)
+	GetCheckHistory(ctx context.Context, habitId int) []time.Time
 }
 
 type habitCheckService struct {
@@ -32,50 +32,32 @@ func NewHabitCheckService(db *sql.DB, habitCheckRepository repository.HabitCheck
 	}
 }
 
-func (s *habitCheckService) Check(ctx context.Context, req request.CheckHabitRequest) error {
-	if err := s.validate.Struct(req); err != nil {
-		return err
-	}
+func (s *habitCheckService) Check(ctx context.Context, req request.CheckHabitRequest) {
+	err := s.validate.Struct(req)
+	helper.PanicIfError(err)
 
 	tx, err := s.dB.Begin()
-	if err != nil {
-		return err
-	}
+	helper.PanicIfError(err)
+
 	defer helper.CommitOrRollback(tx)
 
-	_, err = s.habitRepository.GetById(ctx, tx, req.ID)
-	if err != nil {
-		return err
-	}
+	_ = s.habitRepository.GetById(ctx, tx, req.ID)
 
 	checkDate, err := time.Parse(helper.DateLayout, req.CheckDate)
-	if err != nil {
-		return err
-	}
+	helper.PanicIfError(err)
 
-	return s.habitCheckRepository.Check(ctx, tx, req.ID, checkDate)
+	s.habitCheckRepository.Check(ctx, tx, req.ID, checkDate)
 }
 
-func (s *habitCheckService) GetCheckHistory(ctx context.Context, habitId int) ([]time.Time, error) {
-	if habitId <= 0 {
-		return nil, helper.ErrHabitIdNotValid
-	}
-
+func (s *habitCheckService) GetCheckHistory(ctx context.Context, habitId int) []time.Time {
 	tx, err := s.dB.Begin()
-	if err != nil {
-		return nil, err
-	}
+	helper.PanicIfError(err)
+
 	defer helper.CommitOrRollback(tx)
 
-	habit, err := s.habitRepository.GetById(ctx, tx, habitId)
-	if err != nil {
-		return nil, err
-	}
+	habit := s.habitRepository.GetById(ctx, tx, habitId)
 
-	checkDates, err := s.habitCheckRepository.GetCheckHistory(ctx, tx, habit.ID)
-	if err != nil {
-		return nil, err
-	}
+	checkDates := s.habitCheckRepository.GetCheckHistory(ctx, tx, habit.ID)
 
-	return checkDates, nil
+	return checkDates
 }
