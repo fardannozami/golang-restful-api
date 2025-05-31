@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/fardannozami/golang-restful-api/helper"
 	"github.com/fardannozami/golang-restful-api/request"
 	"github.com/fardannozami/golang-restful-api/response"
 	"github.com/fardannozami/golang-restful-api/service"
@@ -28,81 +29,94 @@ func NewHabitController(habitService service.HabitService) HabitController {
 }
 
 func (c *habitController) Create(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+	decoder := json.NewDecoder(req.Body)
 	var habitCreateRequest request.HabitCreateRequest
-	if err := json.NewDecoder(req.Body).Decode(&habitCreateRequest); err != nil {
-		response.WriteValidationError(w, "invalid request body")
-		return
+	err := decoder.Decode(&habitCreateRequest)
+	helper.PanicIfError(err)
+
+	habit := c.habitService.Create(req.Context(), habitCreateRequest)
+
+	apiResponse := response.ApiResponse{
+		Code:    http.StatusCreated,
+		Message: "created",
+		Data:    habit,
 	}
 
-	_, err := c.habitService.Create(req.Context(), habitCreateRequest)
-	if err != nil {
-		response.WriteInternalError(w, err.Error())
-		return
-	}
-
-	response.WriteCreated(w, "habit created successfully")
+	w.Header().Set("Content-Type", "application/json")
+	encoder := json.NewEncoder(w)
+	err = encoder.Encode(apiResponse)
+	helper.PanicIfError(err)
 }
 
 func (c *habitController) Update(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+	decoder := json.NewDecoder(req.Body)
 	var habitUpdateRequest request.HabitUpdateRequest
-	if err := json.NewDecoder(req.Body).Decode(&habitUpdateRequest); err != nil {
-		response.WriteValidationError(w, "invalid request body")
-		return
-	}
+	err := decoder.Decode(&habitUpdateRequest)
+	helper.PanicIfError(err)
 
 	habitId, err := strconv.Atoi(params.ByName("id"))
-	if err != nil {
-		response.WriteValidationError(w, "invalid habit id")
-		return
-	}
+	helper.PanicIfError(err)
+
 	habitUpdateRequest.ID = habitId
 
-	habitResponse, err := c.habitService.Update(req.Context(), habitUpdateRequest)
-	if err != nil {
-		response.WriteInternalError(w, err.Error())
-		return
+	habit := c.habitService.Update(req.Context(), habitUpdateRequest)
+	apiResponse := response.ApiResponse{
+		Code:    http.StatusOK,
+		Message: "success",
+		Data:    habit,
 	}
 
-	response.WriteData(w, habitResponse)
+	w.Header().Set("Content-Type", "application/json")
+	encoder := json.NewEncoder(w)
+	err = encoder.Encode(apiResponse)
+	helper.PanicIfError(err)
 }
 
 func (c *habitController) Delete(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 	habitId, err := strconv.Atoi(params.ByName("id"))
-	if err != nil {
-		response.WriteValidationError(w, "invalid habit id")
-		return
+	helper.PanicIfError(err)
+
+	c.habitService.Delete(req.Context(), habitId)
+
+	apiResponse := response.ApiResponse{
+		Code:    http.StatusOK,
+		Message: "success",
 	}
 
-	if err := c.habitService.Delete(req.Context(), habitId); err != nil {
-		response.WriteInternalError(w, err.Error())
-		return
-	}
-
-	response.WriteSuccess(w, "habit deleted successfully")
+	w.Header().Set("Content-Type", "application/json")
+	encoder := json.NewEncoder(w)
+	err = encoder.Encode(apiResponse)
+	helper.PanicIfError(err)
 }
 
 func (c *habitController) GetAll(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
-	habits, err := c.habitService.GetAll(req.Context())
-	if err != nil {
-		response.WriteInternalError(w, err.Error())
-		return
+	habits := c.habitService.GetAll(req.Context())
+	apiResponse := response.ApiResponse{
+		Code:    http.StatusOK,
+		Message: "success",
+		Data:    habits,
 	}
 
-	response.WriteData(w, habits)
+	w.Header().Set("Content-Type", "application/json")
+	encoder := json.NewEncoder(w)
+	err := encoder.Encode(apiResponse)
+	helper.PanicIfError(err)
 }
 
 func (c *habitController) GetById(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 	habitId, err := strconv.Atoi(params.ByName("id"))
-	if err != nil {
-		response.WriteValidationError(w, "invalid habit id")
-		return
+	helper.PanicIfError(err)
+
+	habit := c.habitService.GetById(req.Context(), habitId)
+	apiResponse := response.ApiResponse{
+		Code:    http.StatusOK,
+		Message: "success",
+		Data:    habit,
 	}
 
-	habit, err := c.habitService.GetById(req.Context(), habitId)
-	if err != nil {
-		response.WriteInternalError(w, err.Error())
-		return
-	}
+	w.Header().Set("Content-Type", "application/json")
+	encoder := json.NewEncoder(w)
+	err = encoder.Encode(apiResponse)
+	helper.PanicIfError(err)
 
-	response.WriteData(w, habit)
 }
